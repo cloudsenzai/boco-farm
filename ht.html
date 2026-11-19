@@ -1,0 +1,1721 @@
+﻿<!DOCTYPE html>
+<html lang="ja">
+<head>
+<base href="https://hinata-ya.tech/games/games/slime-farm/">
+<script>(function(){try{localStorage.getItem("_");}catch(e){var m={};Object.defineProperty(window,"localStorage",{value:{getItem:function(k){return Object.prototype.hasOwnProperty.call(m,k)?m[k]:null;},setItem:function(k,v){m[k]=String(v);},removeItem:function(k){delete m[k];},clear:function(){m={};},key:function(i){return Object.keys(m)[i]||null;}}});}})();</script>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+  <title>BoCo牧場 - 捕まえて合成・進化！ボスとバトルする放置ゲーム（無料）| BoCo</title>
+  <meta name="description" content="BoCoを買う・のはらで捕まえる・すみかで産ませるの3つでスライムを増やし、同じスライムを重ねると進化。合成で新しいスライムを見つけて、突然変異のきらきらを狙って、強くなったらボスをとうばつ。閉じている間もコインがたまる無料の放置ゲーム。ダウンロード不要でPC・スマホから遊べる。">
+  <link rel="stylesheet" href="../../css/style.css">
+<style>
+/* BoCo牧場
+   スマホは1列（HUD → 場面 → ごうせい台/すみか → タブパネル）、PC幅は右にタブパネルを並べる2列。
+   パネルと場面の高さは固定し、ずかん・けいとうずを開いても下の広告を押し下げない */
+
+.game-page {
+  max-width: 900px;
+}
+
+/* ページの上の おしらせ（閉じると覚える・game.js） */
+.sf-news {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  max-width: 860px;
+  margin: 0 auto 0.6rem;
+  padding: 0.4rem 0.6rem;
+  border: 2px solid #ffd93b;
+  border-radius: 10px;
+  background: linear-gradient(180deg, #fffaf0, #fff3cd);
+  font-size: 0.85rem;
+  line-height: 1.45;
+  color: #7b5800;
+}
+.sf-news[hidden] { display: none; }
+.sf-news-badge {
+  flex: none;
+  padding: 0.05rem 0.45rem;
+  border-radius: 999px;
+  background: #e8930c;
+  color: #fff;
+  font-size: 0.7rem;
+  font-weight: 900;
+}
+.sf-news-text { flex: 1; min-width: 0; }
+.sf-news-item { display: block; }
+.sf-news-item[hidden] { display: none; }
+.sf-news-sorry { font-weight: 700; color: #b03a1a; }
+.sf-news-close {
+  flex: none;
+  width: 1.5rem;
+  height: 1.5rem;
+  padding: 0;
+  border: none;
+  border-radius: 999px;
+  background: rgba(0, 0, 0, 0.08);
+  color: #7b5800;
+  font-size: 0.75rem;
+  line-height: 1;
+  cursor: pointer;
+}
+.sf-news-close:hover { background: rgba(0, 0, 0, 0.16); }
+
+.sf-root {
+  position: relative;
+  max-width: 860px;
+  margin: 0 auto 2rem;
+}
+
+.sf-root [hidden] {
+  display: none !important;
+}
+
+.sf-frame {
+  background: #fff;
+  border-radius: 16px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+  overflow: hidden;
+}
+
+.sf-root button {
+  font-family: inherit;
+  font-weight: 700;
+  border: 0;
+  cursor: pointer;
+}
+
+.sf-root button:focus-visible {
+  outline: 3px solid #2F6F8F;
+  outline-offset: 2px;
+}
+
+/* ---- HUD（数字は等幅。桁が変わってもガタつかない） ---- */
+.sf-hud {
+  display: grid;
+  grid-template-columns: 1fr 1fr auto;
+  gap: 6px;
+  padding: 10px 10px 6px;
+  font-variant-numeric: tabular-nums;
+}
+
+.sf-stat {
+  background: #FFF3E0;
+  border-radius: 10px;
+  padding: 5px 9px;
+  line-height: 1.25;
+  min-width: 0;
+}
+
+.sf-stat small {
+  display: block;
+  font-size: 10px;
+  color: #8a4a12;
+  letter-spacing: 0.06em;
+}
+
+.sf-stat b {
+  display: block;
+  font-size: 16px;
+  font-weight: 900;
+  color: #333;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: clip;
+}
+
+.sf-stat-net {
+  background: #EAF6EC;
+}
+
+.sf-stat-net small {
+  color: #1F4A32;
+}
+
+.sf-unit {
+  font-size: 11px;
+  font-weight: 500;
+}
+
+/* ---- 場面タブ ---- */
+.sf-scene-tabs {
+  display: flex;
+  gap: 6px;
+  padding: 4px 10px 8px;
+}
+
+.sf-scene-tabs button {
+  flex: 1;
+  padding: 8px 0;
+  font-size: 13px;
+  border-radius: 100px;
+  background: #F3EFE8;
+  color: #666;
+}
+
+.sf-scene-tabs button.on {
+  background: #E67E22;
+  color: #fff;
+}
+
+.sf-scene-tabs button .sf-badge {
+  display: inline-block;
+  min-width: 1.4em;
+  margin-left: 3px;
+  padding: 0 4px;
+  border-radius: 100px;
+  background: #D6412A;
+  color: #fff;
+  font-size: 10px;
+  line-height: 1.5;
+}
+
+/* ---- 場面（canvas） ---- */
+.sf-stage {
+  position: relative;
+  background: #c9ec9f;
+}
+
+#sf-canvas {
+  display: block;
+  width: 100%;
+  height: auto;
+  /* ドラッグ合成・捕獲のタップをページのスクロールに奪われないように。枠の外は普通にスクロールできる */
+  touch-action: none;
+  -webkit-user-select: none;
+  user-select: none;
+  -webkit-touch-callout: none;
+}
+
+.sf-area-chips {
+  position: absolute;
+  top: 8px;
+  left: 8px;
+  right: 54px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px;
+}
+
+.sf-chip {
+  font-size: 11px;
+  padding: 3px 9px;
+  border-radius: 100px;
+  background: rgba(255, 255, 255, 0.92);
+  color: #333;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.15);
+}
+
+.sf-root .sf-chip.on {
+  background: #E67E22;
+  color: #fff;
+}
+
+.sf-root .sf-chip.lock {
+  color: #999;
+  cursor: default;
+}
+
+/* ---- canvas の下のひとこと（選んだスライムの情報・次にやること） ---- */
+.sf-tip {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 44px;
+  margin: 8px 10px 0;
+  padding: 6px 10px;
+  border-radius: 10px;
+  background: #FFFDF6;
+  border: 1px solid #F0E6D2;
+  font-size: 12px;
+  line-height: 1.45;
+  color: #444;
+}
+
+.sf-tip b {
+  color: #B3560A;
+}
+
+.sf-tip .sf-tip-text {
+  flex: 1;
+  min-width: 0;
+}
+
+.sf-tip .sf-btn {
+  flex-shrink: 0;
+}
+
+/* はじめての子の 最初の1手（タマゴを かう）。らん ごと 目立たせ、ボタンは ふくらんで 光る */
+.sf-tip.first {
+  flex-wrap: wrap;
+  background: #FFF3E0;
+  border: 2px solid #E67E22;
+  font-size: 13px;
+}
+
+/* スマホの はばでは ボタンを 文字の下へ（横に並べると 文字が 1行6字の 細い柱になる） */
+.sf-tip.first .sf-tip-text {
+  flex: 1 1 180px;
+}
+
+.sf-tip.first .sf-btn {
+  flex: 0 0 auto;
+}
+
+@media (max-width: 479px) {
+  .sf-tip.first .sf-btn {
+    flex: 1 1 100%;
+  }
+}
+
+.sf-root .sf-btn.hot {
+  animation: sf-pulse 1.2s ease-in-out infinite;
+}
+
+.sf-root .sf-btn.hot:disabled {
+  animation: none;
+}
+
+@keyframes sf-pulse {
+  0%, 100% { transform: scale(1); box-shadow: 0 0 0 0 rgba(230, 126, 34, 0.55); }
+  50% { transform: scale(1.04); box-shadow: 0 0 0 7px rgba(230, 126, 34, 0); }
+}
+
+/* タマゴタブの みどりのタマゴ の行（はじめての子だけ） */
+.sf-row.hot {
+  box-shadow: 0 0 0 2px #E67E22;
+}
+
+/* ---- ごうせい台・すみか・のはら/とうばつの操作カード ---- */
+.sf-stations {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+  padding: 8px 10px 10px;
+  min-height: 96px;
+}
+
+.sf-card {
+  border: 2px dashed #d9cdb8;
+  border-radius: 12px;
+  padding: 6px 8px 8px;
+  background: #FFFDF9;
+  min-width: 0;
+}
+
+.sf-card.wide {
+  grid-column: 1 / -1;
+}
+
+.sf-card.lock {
+  opacity: 0.6;
+}
+
+.sf-card h4 {
+  margin: 0 0 4px;
+  font-size: 12px;
+  color: #8a4a12;
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 4px;
+}
+
+.sf-card h4 span {
+  font-weight: 500;
+  color: #999;
+  font-size: 10px;
+  white-space: nowrap;
+}
+
+/* 施設の絵つきの見出し（ごうせい台・すみか）。h4 の flex に img と文字を1つの子として並べる */
+.sf-card h4 .sf-fac-ttl {
+  font-style: normal;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  min-width: 0;
+}
+
+.sf-fac-img {
+  width: 22px;
+  height: 22px;
+  object-fit: contain;
+}
+
+.sf-ic .sf-fac-img {
+  width: 32px;
+  height: 32px;
+}
+
+.sf-card p {
+  margin: 0 0 4px;
+  font-size: 11px;
+  color: #666;
+  line-height: 1.4;
+}
+
+.sf-slots {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.sf-slot {
+  width: 46px;
+  height: 46px;
+  flex-shrink: 0;
+  border-radius: 10px;
+  background: #F3EFE8;
+  display: grid;
+  place-items: center;
+  position: relative;
+  padding: 0;
+}
+
+.sf-slot img {
+  max-width: 40px;
+  max-height: 40px;
+  pointer-events: none;
+}
+
+.sf-slot.drop-ok {
+  background: #FFF1B8;
+  box-shadow: 0 0 0 3px #F2C12E;
+}
+
+.sf-slot .sf-shiny-mark {
+  position: absolute;
+  right: -2px;
+  top: -4px;
+  font-size: 12px;
+}
+
+.sf-slot-empty {
+  color: #bbb;
+  font-size: 18px;
+}
+
+.sf-egg {
+  font-size: 30px;
+  line-height: 1;
+  display: inline-block;
+  animation: sf-wobble 0.9s ease-in-out infinite;
+}
+
+@keyframes sf-wobble {
+  0%, 100% { transform: rotate(-8deg); }
+  50% { transform: rotate(8deg); }
+}
+
+.sf-timer {
+  margin-left: auto;
+  text-align: right;
+  font-size: 11px;
+  color: #666;
+  line-height: 1.3;
+  font-variant-numeric: tabular-nums;
+}
+
+.sf-btn {
+  padding: 6px 10px;
+  font-size: 12px;
+  border-radius: 100px;
+  background: #E67E22;
+  color: #fff;
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+}
+
+.sf-card .sf-slots .sf-btn {
+  margin-left: auto;
+}
+
+.sf-root .sf-btn:disabled,
+.sf-root .sf-btn.lock {
+  background: #EDE7DC;
+  color: #999;
+  cursor: default;
+}
+
+.sf-root .sf-btn.done {
+  background: #EAF6EC;
+  color: #1F4A32;
+  cursor: default;
+}
+
+.sf-root .sf-btn.green {
+  background: #2E8B57;
+}
+
+/* おまかせ進化の OFF。押せるので lock（cursor: default）は使わない */
+.sf-root .sf-btn.off {
+  background: #EDE7DC;
+  color: #666;
+}
+
+.sf-root .sf-btn.big {
+  padding: 9px 18px;
+  font-size: 14px;
+}
+
+/* ---- エサ（押すと、牧場で選んだ子にあげる） ---- */
+.sf-foods {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px;
+  margin-bottom: 6px;
+}
+
+.sf-food {
+  display: flex;
+  align-items: center;
+  gap: 3px;
+  padding: 4px 7px;
+  border-radius: 100px;
+  background: #FFF3E0;
+  color: #8a4a12;
+  font-size: 11px;
+  line-height: 1.2;
+}
+
+.sf-food b {
+  font-size: 14px;
+}
+
+.sf-food i {
+  font-style: normal;
+  font-weight: 900;
+  min-width: 1.2em;
+  padding: 0 4px;
+  border-radius: 100px;
+  background: #E67E22;
+  color: #fff;
+  font-variant-numeric: tabular-nums;
+}
+
+.sf-root .sf-food:disabled {
+  background: #F1EDE6;
+  color: #aaa;
+  cursor: default;
+}
+
+.sf-root .sf-food:disabled i {
+  background: #d6d0c6;
+}
+
+/* ---- 下のタブパネル ---- */
+.sf-panel-tabs {
+  display: flex;
+  gap: 4px;
+  padding: 8px 10px 0;
+  border-top: 1px solid #F0E9DE;
+}
+
+.sf-panel-tabs button {
+  flex: 1;
+  padding: 7px 0;
+  font-size: 12px;
+  background: transparent;
+  color: #777;
+  border-radius: 10px 10px 0 0;
+  white-space: nowrap;
+}
+
+.sf-panel-tabs button.on {
+  background: #FFF3E0;
+  color: #B3560A;
+}
+
+.sf-panel {
+  height: 260px;
+  overflow: auto;
+  padding: 10px 10px 12px;
+  background: #FFF3E0;
+  font-size: 12px;
+  overscroll-behavior: contain;
+}
+
+.sf-shop {
+  display: grid;
+  gap: 6px;
+}
+
+.sf-shop-head {
+  font-weight: 900;
+  color: #B3560A;
+  margin: 4px 2px 0;
+}
+
+.sf-row {
+  display: grid;
+  grid-template-columns: 34px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 8px;
+  background: #fff;
+  border-radius: 10px;
+  padding: 6px 8px;
+}
+
+.sf-ic {
+  width: 34px;
+  height: 34px;
+  display: grid;
+  place-items: center;
+  font-size: 20px;
+}
+
+.sf-ic img {
+  max-width: 34px;
+  max-height: 34px;
+}
+
+.sf-nm {
+  font-weight: 900;
+  line-height: 1.25;
+  min-width: 0;
+}
+
+.sf-nm small {
+  display: block;
+  font-weight: 500;
+  color: #777;
+  font-size: 11px;
+}
+
+/* ずかん */
+.sf-dex-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  margin-bottom: 6px;
+  font-weight: 900;
+  color: #B3560A;
+}
+
+.sf-dex-head small {
+  color: #777;
+  font-weight: 500;
+}
+
+.sf-dex {
+  display: grid;
+  grid-template-columns: repeat(6, minmax(0, 1fr));
+  gap: 6px;
+}
+
+/* 図鑑のマスはボタン（タップで手に入れかた） */
+.sf-dex-cell {
+  position: relative;
+  display: block;
+  width: 100%;
+  background: #fff;
+  border-radius: 10px;
+  padding: 4px 2px 3px;
+  text-align: center;
+  font-size: 9.5px;
+  font-weight: 500;
+  line-height: 1.2;
+  color: #444;
+}
+
+.sf-dex-cell:active {
+  transform: scale(0.96);
+}
+
+.sf-dex-cell img {
+  display: block;
+  height: 40px;
+  max-width: 100%;
+  margin: 0 auto 2px;
+  object-fit: contain;
+}
+
+.sf-root img.sil {
+  filter: brightness(0);
+  opacity: 0.45;
+}
+
+.sf-dex-cell.unk {
+  color: #aaa;
+}
+
+.sf-dex-cell .sf-shiny-mark {
+  position: absolute;
+  top: 1px;
+  right: 3px;
+  font-size: 11px;
+}
+
+.sf-dex-note {
+  margin-top: 8px;
+  color: #777;
+}
+
+/* けいとうず（横に長いのでタブの中だけ横スクロール。親の flex を広げない） */
+.sf-tree-wrap {
+  overflow-x: auto;
+  width: 0;
+  min-width: 100%;
+}
+
+.sf-tree-wrap svg {
+  display: block;
+}
+
+.sf-rebirth {
+  text-align: center;
+  padding: 10px 8px;
+  color: #555;
+  line-height: 1.6;
+}
+
+.sf-rebirth .big {
+  font-size: 40px;
+  line-height: 1;
+  margin-bottom: 6px;
+}
+
+.sf-rebirth b {
+  color: #B3560A;
+}
+
+/* ---- ダイアログ（おかえり・進化先えらび・転生の確認） ---- */
+.sf-modal {
+  position: absolute;
+  inset: 0;
+  z-index: 70;
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+  padding: 60px 12px 12px;
+  background: rgba(40, 30, 20, 0.45);
+  border-radius: 16px;
+}
+
+.sf-modal-box {
+  width: 100%;
+  max-width: 340px;
+  max-height: 100%;
+  overflow: auto;
+  background: #fff;
+  border-radius: 16px;
+  padding: 18px 16px 16px;
+  text-align: center;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.25);
+  font-size: 14px;
+  line-height: 1.6;
+  color: #333;
+}
+
+.sf-modal-box h3 {
+  margin: 0 0 8px;
+  font-size: 18px;
+  color: #E67E22;
+}
+
+.sf-modal-box .sf-num {
+  font-size: 22px;
+  font-weight: 900;
+  color: #B3560A;
+  font-variant-numeric: tabular-nums;
+}
+
+.sf-modal-box ul {
+  list-style: none;
+  padding: 0;
+  margin: 8px 0 12px;
+  font-size: 13px;
+}
+
+/* 図鑑の説明（見出しは中央・本文は左寄せ） */
+.sf-modal-box .sf-dexinfo {
+  text-align: left;
+}
+
+.sf-dexinfo > img {
+  display: block;
+  height: 72px;
+  margin: 0 auto 4px;
+  object-fit: contain;
+}
+
+.sf-dexinfo h3 {
+  text-align: center;
+}
+
+.sf-dexinfo h4 {
+  margin: 10px 0 2px;
+  font-size: 12px;
+  color: #B3560A;
+}
+
+.sf-dexinfo-sub {
+  margin: 0;
+  font-size: 11px;
+  color: #888;
+  text-align: center;
+}
+
+.sf-dexinfo-pref {
+  margin: 10px 0 0;
+  padding: 6px 8px;
+  font-size: 12px;
+  text-align: center;
+  background: #FFF4E0;
+  border-radius: 8px;
+}
+
+.sf-dexinfo-note {
+  margin: 4px 0 0;
+  font-size: 13px;
+  text-align: center;
+}
+
+.sf-modal-box .sf-dexinfo ul {
+  margin: 0;
+  font-size: 12.5px;
+  line-height: 1.5;
+}
+
+.sf-dexinfo li {
+  padding: 3px 0;
+  border-top: 1px dashed #eee;
+}
+
+.sf-dexinfo li:first-child {
+  border-top: 0;
+}
+
+.sf-modal-actions {
+  display: flex;
+  justify-content: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-top: 10px;
+}
+
+/* メンバーえらび（3〜4列のカード。横1列の .sf-choice に匹数ぶん流し込むと1匹が細長い棒になっていた） */
+.sf-modal-box.wide {
+  max-width: 480px;
+}
+
+.sf-modal-box h3 small {
+  font-size: 12px;
+  color: #999;
+  font-weight: 500;
+}
+
+.sf-party {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 6px;
+  margin: 8px 0 4px;
+}
+
+.sf-party-card {
+  position: relative;
+  display: block;
+  width: 100%;
+  padding: 6px 4px 5px;
+  border-radius: 12px;
+  background: #FFF3E0;
+  color: #333;
+  font-size: 11px;
+  line-height: 1.25;
+  box-shadow: inset 0 0 0 2px transparent;
+}
+
+.sf-party-card img {
+  display: block;
+  height: 40px;
+  max-width: 100%;
+  margin: 0 auto 2px;
+  object-fit: contain;
+}
+
+.sf-party-card b {
+  display: block;
+  font-size: 11.5px;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.sf-party-card small {
+  display: block;
+  font-size: 10px;
+  color: #777;
+  font-weight: 500;
+}
+
+.sf-party-card small.adv {
+  color: #2E8B57;
+  font-weight: 900;
+}
+
+.sf-party-card small.dis {
+  color: #c0392b;
+  font-weight: 900;
+}
+
+.sf-party-card.on {
+  background: #EAF6EC;
+  box-shadow: inset 0 0 0 2px #2fbf3a;
+}
+
+.sf-party-num {
+  position: absolute;
+  top: 3px;
+  left: 3px;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: #2fbf3a;
+  color: #fff;
+  font-size: 11px;
+  font-weight: 900;
+  display: grid;
+  place-items: center;
+}
+
+@media (min-width: 480px) {
+  .sf-party {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+}
+
+.sf-choice {
+  display: flex;
+  gap: 10px;
+  justify-content: center;
+  margin: 10px 0 6px;
+}
+
+.sf-choice button {
+  flex: 1;
+  max-width: 130px;
+  padding: 8px 6px;
+  border-radius: 12px;
+  background: #FFF3E0;
+  color: #333;
+  font-size: 13px;
+}
+
+.sf-choice img {
+  display: block;
+  height: 56px;
+  margin: 0 auto 4px;
+}
+
+.sf-remember {
+  font-size: 12px;
+  color: #666;
+}
+
+.sf-noscript {
+  padding: 1rem;
+  text-align: center;
+}
+
+/* ---- 本文の表 ---- */
+/* 表の min-width がページ幅の計算に効いてスマホで横スクロールが出るので、幅0から広げて遮断する */
+.sf-table-wrap {
+  overflow-x: auto;
+  width: 0;
+  min-width: 100%;
+  margin-bottom: 0.75rem;
+}
+
+.sf-table {
+  border-collapse: collapse;
+  font-size: 0.8rem;
+  min-width: 520px;
+  color: #444;
+}
+
+.sf-table th,
+.sf-table td {
+  border: 1px solid #eee2cf;
+  padding: 4px 6px;
+  text-align: left;
+}
+
+.sf-table thead th {
+  background: #FFF3E0;
+}
+
+/* ---- PC幅: 右にタブパネルを並べる ---- */
+@media (min-width: 860px) {
+  .sf-frame {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 320px;
+  }
+
+  .sf-right {
+    display: flex;
+    flex-direction: column;
+    border-left: 1px solid #F0E9DE;
+    min-height: 0;
+  }
+
+  .sf-panel-tabs {
+    border-top: 0;
+    padding-top: 10px;
+  }
+
+  .sf-panel-tabs button {
+    font-size: 11px;
+    letter-spacing: -0.02em;
+  }
+
+  /* 高さ0から伸ばす: 中身の高さで2列の行が伸びると、左の場面の下に空白ができる */
+  .sf-panel {
+    flex: 1 1 0;
+    height: 0;
+    min-height: 0;
+  }
+
+  .sf-dex {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+
+  .sf-dex-cell img {
+    height: 48px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .sf-egg,
+  .sf-root .sf-btn.hot {
+    animation: none;
+  }
+}
+
+/* たんけんの行き先カードに並べる「ここでしか会えない子」3匹の絵（9/18 行き先ごとに3種にした） */
+.sf-tk-finds img {
+  max-width: 36px;
+  max-height: 36px;
+  vertical-align: middle;
+}
+
+/* ---- まとめて おわかれ・えらんで つくる（11/18） ---- */
+.sf-bulk-tabs {
+  display: flex;
+  gap: 6px;
+  justify-content: center;
+  flex-wrap: wrap;
+  margin: 6px 0;
+}
+
+.sf-bulk-tabs button {
+  padding: 5px 12px;
+  border-radius: 100px;
+  background: #F3EFE8;
+  color: #666;
+  font-size: 12px;
+}
+
+.sf-bulk-tabs button.on {
+  background: #E67E22;
+  color: #fff;
+}
+
+/* 牧場と同じ ならび（列の数は game.js で S.size に合わせる） */
+.sf-bulk {
+  display: grid;
+  gap: 4px;
+  margin: 6px 0 8px;
+}
+
+.sf-bulk-cell {
+  position: relative;
+  aspect-ratio: 1;
+  border-radius: 10px;
+  background: #F3EFE8;
+  padding: 3px;
+  display: grid;
+  place-items: center;
+  min-width: 0;
+}
+
+.sf-bulk-cell.empty {
+  background: #FAF7F2;
+}
+
+.sf-bulk-cell img {
+  max-width: 100%;
+  max-height: 100%;
+  object-fit: contain;
+  pointer-events: none;
+}
+
+.sf-bulk-cell.on {
+  background: #FFE3DE;
+  box-shadow: inset 0 0 0 3px #E0533E;
+}
+
+.sf-bulk-cell.on img {
+  opacity: 0.55;
+}
+
+.sf-bulk-check {
+  position: absolute;
+  left: 2px;
+  top: 2px;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: #E0533E;
+  color: #fff;
+  font-size: 12px;
+  font-weight: 900;
+  display: grid;
+  place-items: center;
+}
+
+.sf-bulk-cell .sf-shiny-mark {
+  position: absolute;
+  right: 0;
+  top: -2px;
+  font-size: 11px;
+}
+
+.sf-modal-box .sf-warn {
+  color: #C0392B;
+}
+
+.sf-recipes {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 6px;
+  margin: 6px 0 4px;
+}
+
+@media (min-width: 480px) {
+  .sf-recipes {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+
+.sf-rb {
+  display: block;
+  width: 100%;
+  padding: 6px 4px 5px;
+  border-radius: 12px;
+  background: #FFF3E0;
+  color: #333;
+  font-size: 11px;
+  line-height: 1.3;
+}
+
+.sf-rb.ok {
+  background: #EAF6EC;
+  box-shadow: inset 0 0 0 2px #2FBF3A;
+}
+
+.sf-rb.lock {
+  background: #F3EFE8;
+  color: #aaa;
+}
+
+.sf-rb > img {
+  display: block;
+  height: 40px;
+  max-width: 100%;
+  margin: 0 auto 2px;
+  object-fit: contain;
+}
+
+.sf-rb b {
+  display: block;
+  font-size: 11.5px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.sf-rb-q {
+  display: block;
+  height: 40px;
+  line-height: 40px;
+  font-size: 26px;
+  font-weight: 900;
+  color: #ccc;
+}
+
+.sf-rb-mats {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 1px;
+  margin: 3px 0 1px;
+  color: #999;
+  font-size: 10px;
+}
+
+.sf-rb-mats i {
+  font-style: normal;
+  min-width: 14px;
+}
+
+.sf-rb-mats img {
+  display: block;
+  width: 22px;
+  height: 22px;
+  object-fit: contain;
+}
+
+.sf-rb-mats i.ng img {
+  opacity: 0.3;
+  filter: grayscale(1);
+}
+
+.sf-rb small {
+  display: block;
+  font-size: 10px;
+  color: #999;
+}
+
+.sf-rb.ok small {
+  color: #2E8B57;
+}
+
+.sf-modal-box .sf-rb-msg {
+  padding: 4px 8px;
+  background: #FFF4E0;
+  border-radius: 8px;
+}
+
+.sf-rb-none {
+  grid-column: 1 / -1;
+}
+
+.sf-card .sf-rb-row {
+  margin-top: 6px;
+}
+
+.sf-card .sf-rb-row .sf-btn {
+  flex: 1;
+  margin-left: 0;
+}
+
+</style>
+</head>
+<body>
+  <div id="header"></div>
+
+  <div class="game-page">
+    <h1 class="game-page-title">スライム牧場</h1>
+    <div class="game-page-tags">
+      <a href="../../tags/idle/" class="tag">放置・育成</a>
+      <a href="../../tags/puzzle/" class="tag">パズル</a>
+    </div>
+
+    <div class="sf-news" id="sf-news" hidden>
+      <span class="sf-news-badge">おしらせ</span>
+      <span class="sf-news-text">
+        <span class="sf-news-item sf-news-sorry">11/5 ごめんなさい。11/3 から、新しいスライム・ずかん・ぼくじょう３・４が とつぜん 消えることがありました。11/5 に直しました。また消えたら、ページを ひらきなおすと もどります（直す前に 消えた子は もどせません）</span>
+        <span class="sf-news-item">10/30 「おまかせ進化」を しせつタブで ON/OFF できるようにしました</span>
+        <span class="sf-news-item" id="sf-news-hw">10/26 ハロウィンの のはら が Lv2 から上げられないのを直しました。コインで Lv3 にでき、おおなべ・バンパイアが出ます</span>
+      </span>
+      <button class="sf-news-close" id="sf-news-close" type="button" aria-label="お知らせを閉じる">✕</button>
+    </div>
+
+    <div class="game-container sf-root" id="sf-root">
+      <div class="sf-frame">
+        <div class="sf-left">
+          <div class="sf-hud">
+            <div class="sf-stat"><small>コイン</small><b id="sf-coins">0</b></div>
+            <div class="sf-stat"><small>しゅうにゅう</small><b><span id="sf-cps">0</span><span class="sf-unit">/秒</span></b></div>
+            <div class="sf-stat sf-stat-net"><small>あみ</small><b><span id="sf-nets">8</span><span class="sf-unit" id="sf-netmax">/8</span></b></div>
+          </div>
+          <div class="sf-scene-tabs" role="tablist">
+            <button type="button" class="on" data-scene="ranch" role="tab" aria-selected="true">ぼくじょう</button>
+            <button type="button" data-scene="field" role="tab" aria-selected="false">のはら</button>
+            <button type="button" data-scene="battle" role="tab" aria-selected="false">とうばつ</button>
+            <button type="button" data-scene="tanken" role="tab" aria-selected="false">たんけん</button>
+          </div>
+          <div class="sf-stage" id="sf-stage">
+            <canvas id="sf-canvas" width="400" height="330"></canvas>
+            <div class="sf-area-chips" id="sf-area-chips" hidden></div>
+          </div>
+          <div class="sf-tip" id="sf-tip"></div>
+          <div class="sf-stations" id="sf-stations"></div>
+        </div>
+        <div class="sf-right">
+          <div class="sf-panel-tabs" role="tablist">
+            <button type="button" class="on" data-panel="egg" role="tab">タマゴ</button>
+            <button type="button" data-panel="fac" role="tab">しせつ</button>
+            <button type="button" data-panel="dex" role="tab">ずかん</button>
+            <button type="button" data-panel="tree" role="tab">けいとうず</button>
+            <button type="button" data-panel="rebirth" role="tab">にじ</button>
+          </div>
+          <div class="sf-panel" id="sf-panel"></div>
+        </div>
+      </div>
+      <div class="sf-modal" id="sf-modal" hidden><div class="sf-modal-box" id="sf-modal-box" role="dialog" aria-modal="true"></div></div>
+      <noscript><p class="sf-noscript">このゲームで遊ぶには JavaScript を有効にしてください。</p></noscript>
+    </div>
+
+    <!-- ゲーム枠直下の広告（hinata-game-below） -->
+
+    <div class="game-instructions">
+      <h3>遊び方</h3>
+      <ul>
+        <li><strong>ふやす</strong>: 「タマゴ」タブでタマゴを買う・「のはら」で野生のスライムを捕まえる・「すみか」に2匹入れてタマゴを産ませる、の3つの方法でスライムを増やします</li>
+        <li><strong>捕まえる</strong>: のはらで野生のスライムをタップするとリングが出ます。回っている目印が<strong>みどりの範囲</strong>に入ったら、もう1回タップ！ あみは時間で回復します</li>
+        <li><strong>進化</strong>: 牧場で<strong>同じ種類のスライムをドラッグで重ねる</strong>と、1段階上のスライムに進化します（タップで選んで、相手をタップしてもOK）。段階が上がるほどコインをたくさん出します</li>
+        <li><strong>枝分かれ</strong>: 3段階目から4段階目は、<strong>何を食べさせたか</strong>で進化先が決まります（つぼみスライムに「はなのみつ」をあげると はな、「きのこ」をあげると きのこ）。エサをあげていなければ、重ねたときに「どっちに進化する？」と聞かれます。<strong>施設がなくても進化できます</strong></li>
+        <li><strong>エサ</strong>: 花だん・まるた・井戸・こおりのいえ・かがみ・ひらいしんが、2分に1つエサを作ります。牧場でスライムを選んでから、エサのボタンを押すとあげられます</li>
+        <li><strong>お世話</strong>: しばらくお世話をしないと、スライムは<strong>ふつう</strong>（3時間・少し下がる）→<strong>しょんぼり</strong>（10時間・半分）→<strong>やさぐれ</strong>（2日・4分の1）になって、しゅうにゅうとつよさが下がります。<strong>なでる</strong>と1段階もどり、<strong>エサ</strong>をあげると一気に元気になります。いなくなったり逃げたりはしません</li>
+        <li><strong>合成</strong>: 「ごうせい台」に違う種類を2匹入れて「ごうせい！」。レシピが合えば新しいスライムが生まれます。合わなければ2匹とも戻るので損はしません</li>
+        <li><strong>突然変異</strong>: 進化や合成のたびに、まれに<strong>きらきら</strong>（色違い・収入3倍）や、突然変異でしか生まれない<strong>おやぶんスライム</strong>が出ます</li>
+        <li><strong>とうばつ</strong>: 牧場のつよさ上位3匹がボスと戦います。ボスを10体倒すと「みずべ」、20体倒すと「かざん」、40体倒すと「てんくう」、50体倒すと「うちゅう」、60体倒すと「おかしのくに」、70体倒すと「おもちゃこうじょう」、85体倒すと「ようせいのおちゃかい」、100体倒すと「まほうのとしょかん」ののはらが開きます。<strong>31体目からの ぬし は20〜40分に1体</strong>やってきます（2体までは待っていてくれます。まけても ぬし は帰りません）。70体目のあとは<strong>むげんとうばつ</strong>で、だんだんつよくなる ぬし が続きます</li>
+        <li><strong>たんけん</strong>: ボスを30体倒すと開きます。つよさ上位3匹を「くらい もり」（1分）・「ふるい いせき」（5分）・「たからの どうくつ」（15分）・「きょうりゅうの たに」（30分）・「こおりの くに」（60分）へ送り出すと、コインと、<strong>たんけんでしか会えないスライム</strong>が見つかります。行っているあいだも牧場は動きます</li>
+        <li>ページを閉じていても、最大8時間ぶんのコインがたまります。記録はこのブラウザに保存されます</li>
+      </ul>
+    </div>
+
+    <div class="game-instructions">
+      <h3>スライムの進化と合成</h3>
+      <div class="sf-table-wrap">
+        <table class="sf-table">
+          <thead><tr><th>系統</th><th>1段階目</th><th>2段階目</th><th>3段階目</th><th>4段階目（エサで枝分かれ）</th></tr></thead>
+          <tbody>
+            <tr><th>くさ</th><td>みどりスライム</td><td>はっぱスライム</td><td>つぼみスライム</td><td>はなスライム（はなのみつ）／きのこスライム（きのこ）</td></tr>
+            <tr><th>みず</th><td>あおスライム</td><td>あわスライム</td><td>なみスライム</td><td>うみスライム（わきみず）／こおりスライム（こおりのみ）</td></tr>
+            <tr><th>ほのお</th><td>あかスライム</td><td>ほのおスライム</td><td>マグマスライム</td><td>たいようスライム（ひかりのつぶ）／かみなりスライム（でんきのみ）</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <ul>
+        <li>スライムは全部で<strong>101種類</strong>、ごうせい台のレシピは全部で<strong>44</strong>。はっぱスライムとあわスライムのように、<strong>違う系統をかけ合わせる</strong>と見つかります。合成で生まれたスライムどうしを、さらにかけ合わせるレシピもあります。ボスを100体たおしたあと<strong>ごうせい台きょうか</strong>を建てると、<strong>3匹で合わせるレシピ</strong>も見つかります</li>
+        <li>「にじスライム」を見つけると、「にじ」タブから<strong>あたらしい牧場へ</strong>進めます。コイン・スライム・施設は最初からになりますが、<strong>にじのかけら</strong>1個につき しゅうにゅう と つよさ が10%ずつ上がります。ずかん・レシピ・ボスの記録は残ります</li>
+        <li><strong>相性（3すくみ）</strong>: ほのお ＞ くさ ＞ みず ＞ ほのお。有利な系統のスライムは、とうばつで<strong>つよさ1.5倍</strong>、不利だと0.67倍になります</li>
+        <li>どの種類も、同じ種類の親2匹を「すみか」に入れると同じ種類のタマゴが生まれます。親がきらきらだと、きらきらが生まれやすくなります</li>
+      </ul>
+    </div>
+
+    <div class="game-instructions">
+      <h3>スライム牧場 よくある質問</h3>
+      <ul>
+        <li><strong>Q. スライム牧場は閉じてもスライムがコインを集めてくれますか？</strong><br>A. はい。ページを閉じている間も、最大8時間ぶんのコインが半分の効率でたまります。のはらの野生スライム・あみ・すみかのタマゴも留守中に進むので、戻ってきたら捕まえたり、かえしたりできます。</li>
+        <li><strong>Q. 合成のレシピはどこで分かりますか？</strong><br>A. ごうせい台で違う種類のスライムを2匹かけ合わせて、はじめて見つかります。見つけたレシピは「けいとうず」タブに載り、まだ見つけていないレシピは「？ ＋ ？」で数だけ分かります。レシピが合わなかったときは2匹とも戻るので、損はしません。</li>
+        <li><strong>Q. ボスに勝てないときはどうすればいいですか？</strong><br>A. 牧場のつよさ上位3匹が戦うので、進化や合成でつよいスライムを作りましょう。相性は「ほのお＞くさ＞みず＞ほのお」で、有利な系統だと1.5倍のつよさになります。バトル中に画面をタップしておうえんすると、ぎりぎりの勝負を押し切れることがあります。負けても失うものはありません。</li>
+      </ul>
+    </div>
+
+    <div class="game-promo">
+      <h3>このゲーム、自分でも作れるよ！</h3>
+      <p>
+        スライムの種類・進化先・レシピは、ぜんぶ1つの「表（データ）」に書いてあります。<br>
+        表に1行足すだけで、新しいスライムが増やせるしくみです。<br><br>
+        ひなテックでは、こうしたゲームの<br>
+        作り方を楽しく学べます！
+      </p>
+      <div class="promo-links">
+        <a href="tutorial/" class="btn-primary">このゲームの作り方を見る →</a>
+        <a href="https://hinata-ya.tech/online/" class="btn-primary" data-class-link="game-promo">オンラインで習ってみる（全国OK）→</a>
+        <a href="source/" class="btn-secondary">ソースコードを見る →</a>
+      </div>
+    </div>
+
+    <div class="other-games">
+      <a href="../../">← 他のゲームも遊ぶ</a>
+    </div>
+  </div>
+  <div id="footer"></div>
+  <!-- ランキングを持たないので leaderboard.js は読まず、プレイ履歴の計測だけ直接読む -->
+  <script src="../../js/game-audio.js?v=20260902"></script>
+  <!-- ランキングが無く leaderboard.js を読まないので、「つぎは これで あそぼう」枠は単独で読む -->
+  <script src="../../js/next-game.js?v=20260923"></script>
+<script>
+(function () {
+  'use strict';
+
+  // …（367行 省略）…
+
+  var RING_LAP_MS = 1200;
+  var OFFLINE_CAP_MS = 8 * 60 * 60 * 1000;
+  var OFFLINE_RATE = 0.5;
+  var PET_RATE = 0.05;
+  var TAP_CAP_PER_SEC = 20;
+  var BATTLE_MS = 10000;
+  var SWEEP_MS = 1400;      // 「きあい」ゲージが1往復する時間。タップは1往復に1回だけ効く（連打対策）
+  var CRIT_HALF = 0.08;     // まんなかからこの範囲がみどりの窓＝かいしんのいちげき
+
+  // …（12行 省略）…
+
+  var BOSS_WAIT_FROM = 30;
+  var BOSS_STOCK_MAX = 2;
+  var BOSS_REGEN_MIN_MS = 20 * 60 * 1000;
+  var BOSS_REGEN_MAX_MS = 40 * 60 * 1000;
+  function rollRegen() { return Math.round(BOSS_REGEN_MIN_MS + Math.random() * (BOSS_REGEN_MAX_MS - BOSS_REGEN_MIN_MS)); }
+  var SHINY_INCOME = 3;
+  var SHINY_POWER = 1.5;
+  var EGG_CPS_SECS = { grass: 0, water: 3600, fire: 10800 };  // タマゴの値段の下限（eggPrice）
+  var EGG_CPS_FREE = 2;
+
+  // お世話。最後になでた・エサをあげた時刻からの時間で4段階に弱る。
+  // 3時間でふつう（8割）・10時間でしょんぼり（半分）・2日でやさぐれ（4分の1）。
+  // 9/18「今の半分の時間で弱っていくようにして」で 6/20/96時間 → 3/10/48時間。毎日来る子は毎回 しょんぼり、週末あけの子は やさぐれ に会う。
+  // 留守の稼ぎには効かないので、来たら「みんなにごはん」（1分ぶんの収入）で戻す用事が毎回できるだけ。
+  // 同日「ふつうとごきげんも分けて」: それまで ふつう は名前だけの違い（×1・印なし）だったのを ×0.8 と 💤 の印にして、案内も段階ごとに数える。
+  // （9/16 の元の根拠）24時間ではなく20時間にしたのは、24時間ちょうどだと「毎日だいたい同じ時刻に来る子」がしょんぼりに一度も会わなかったため
+  // （シミュ200シード。20時間なら毎日必ず1回お世話の用事ができて、合格ラインは24時間とまったく同じだった）。
+  // 死なない・逃げない・しょんぼりでも重ねて進化できる（牧場が詰まる原因を増やさないため）。
+  // ★留守中の稼ぎには効かせない: シミュで留守の稼ぎまで半分にすると、平日10分の子のボス30体が33日になり公開の基準を割った
+  var CARE_STEPS = [0, 3 * 3600000, 10 * 3600000, 48 * 3600000];
+  var CARE_NAME = ['ごきげん', 'ふつう', 'しょんぼり', 'やさぐれ'];
+  var CARE_MULT = [1, 0.8, 0.5, 0.25];
+  var CARE_MARK = ['', '💤', '💧', '💢'];
+
+  // …（48行 省略）…
+
+  // 1匹＝1つの文字列。"leaf" / "leaf!"（きらきら）/ "bud^0@29420640"（エサで決めた進化先＋最後にお世話した時刻）。
+  // マスを文字列で持つと保存データが小さく、すみか・ごうせい台へ移してもそのまま持ち回れる。
+  // ^n は SPECIES.evolve の何番目か。公開後に evolve の並びを変えると、保存ずみの指定先が変わるので変えないこと。
+  // @m は「お世話した時刻」を分にしたもの（分で十分・桁を短くするため）
+  var SLIME_RE = /^([a-z]+)(!?)(?:\^(\d))?(?:@(\d+))?$/;
+  function parseSlime(s) {
+    if (!s || typeof s !== 'string') return null;
+    var m = SLIME_RE.exec(s);
+    if (!m || !SPECIES[m[1]]) return null;
+    return { k: m[1], shiny: m[2] === '!', mark: m[3] ? +m[3] : -1, care: m[4] ? +m[4] * 60000 : 0 };
+  }
+  function slimeStr(k, shiny, mark, careAt) {
+    return k + (shiny ? '!' : '') + (mark >= 0 ? '^' + mark : '') + (careAt > 0 ? '@' + Math.floor(careAt / 60000) : '');
+  }
+  // 1匹の一部だけ差しかえる（mark / care）
+  function reSlime(str, mark, careAt) {
+    var s = parseSlime(str);
+    if (!s) return str;
+    return slimeStr(s.k, s.shiny, mark != null ? mark : s.mark, careAt != null ? careAt : s.care);
+  }
+
+  // ごきげん 0 → ふつう 1 → しょんぼり 2 → やさぐれ 3
+  function moodLevel(careAt, t) {
+    var d = t - (careAt || 0);
+    for (var i = CARE_STEPS.length - 1; i > 0; i--) if (d >= CARE_STEPS[i]) return i;
+    return 0;
+  }
+  function moodMult(careAt, t) { return CARE_MULT[moodLevel(careAt, t)]; }
+
+  // …（13行 省略）…
+
+  function incomeOf(k, shiny) { return SPECIES[k].income * (shiny ? SHINY_INCOME : 1); }
+
+  // …（10行 省略）…
+
+  function powerOf(k, shiny, shards) { return speciesPower(k) * (shiny ? SHINY_POWER : 1) * (1 + 0.1 * (shards || 0)); }
+
+  function facMult(fac) {
+    var m = 1;
+    FACILITIES.forEach(function (f) { if (f.mult && fac[f.id]) m *= f.mult; });
+    return m;
+  }
+
+  // 秒収入。cells は牧場のマスの文字列配列。
+  // t（いまの時刻）を渡すとごきげんが効く。渡さないと元気なときの値＝留守の稼ぎと、施設・タマゴの値段の基準に使う
+  // （わざと弱らせて値段を下げる抜け道をふさぐ）
+  function calcCps(cells, fac, shards, t) {
+    var base = 0;
+    for (var i = 0; i < cells.length; i++) {
+      var s = parseSlime(cells[i]);
+      if (s) base += incomeOf(s.k, s.shiny) * (t ? moodMult(s.care, t) : 1);
+    }
+    return base * facMult(fac) * (1 + 0.1 * (shards || 0));
+  }
+
+  function scaledCost(cpsBase, sec, floor) { return Math.ceil(Math.max(floor, cpsBase * sec)); }
+
+  // 一律8がけ（2026-09-16）。進化の施設ゲートを外したあとも「建てるまで遠い」感じが残っていたため
+  function facilityCost(f, lv, cpsBase) {
+    return Math.ceil(scaledCost(cpsBase, f.secs[lv], f.floor * Math.pow(3, lv)) * 0.8);
+  }
+
+  // …（5行 省略）…
+
+  function eggPrice(line, eggLv, bought, cpsBase) {
+    var n = bought || 0, grow = Math.pow(1.05, n);
+    var p = Math.ceil(SPECIES[eggSpecies(line, eggLv)].income * 20 * grow);
+    if (n >= EGG_CPS_FREE && EGG_CPS_SECS[line]) p = Math.max(p, Math.ceil((cpsBase || 0) * EGG_CPS_SECS[line] * grow));
+    return p;
+  }
+
+  // …（3行 省略）…
+
+  function netMax(hutLv) { return NET_HUT_MAX[hutLv || 0]; }
+  function netRegenMs(hutLv) { return NET_HUT_REGEN[hutLv || 0] * 1000; }
+  function netPrice(cpsBase, bought) { return Math.ceil(Math.max(30, cpsBase * 30) * Math.pow(1.05, bought || 0)); }
+
+  // …（5行 省略）…
+
+  // 捕獲リングの緑の範囲（1周に対する割合）
+  function catchZone(stage, shiny, netLv) {
+    var base = [0, 0.5, 0.3, 0.16, 0.11, 0.09][Math.min(stage, 5)];
+    var z = Math.min(0.9, base + 0.08 * ((netLv || 1) - 1));
+    return shiny ? z / 2 : z;
+  }
+  // リング1周の速さ。段階が上がるごとに8%・のはらLvが上がるごとに5%速い（1段階目・Lv1 は 1200ms のまま。4段階目のLv3で 820ms）
+  function catchLapMs(stage, areaLv) {
+    return Math.round(RING_LAP_MS * (1 - 0.08 * (Math.min(stage, 5) - 1)) * (1 - 0.05 * (Math.min(areaLv || 1, 3) - 1)));
+  }
+  // リング開始から elapsedMs 後のタップが緑に入っているか。zoneStart も1周に対する割合
+  function catchHit(elapsedMs, zoneStart, zone, lapMs) {
+    var f = (elapsedMs / (lapMs || RING_LAP_MS)) % 1;
+    var d = (f - zoneStart + 1) % 1;
+    return d <= zone;
+  }
+
+  // …（16行 省略）…
+
+  // 同じ種類2匹の進化先の候補（施設の条件を満たすものだけ）。進化しない種類は []
+  // 進化先の候補。施設を持っていなくても、同じ種類を重ねれば必ず進化する。
+  // どちらの枝になるかは エサ → 覚えた好み → 「どっちに進化する？」の順で決める（branchFor）
+  function evolveOptions(k) {
+    var e = SPECIES[k].evolve;
+    if (!e) return [];
+    if (typeof e === 'string') return [e];
+    return e.map(function (b) { return b.to; });
+  }
+
+  function shinyRate(springLv) { return 0.02 + 0.03 * (springLv || 0); }
+
+  // …（1行 省略）…
+
+  // すみかのきらきら遺伝
+  function breedShinyRate(shinyParents, springLv) {
+    return [0.02, 0.1, 0.5][shinyParents] + 0.03 * (springLv || 0);
+  }
+  var BREED_SECS = [60, 180, 3600, 5400, 7200];
+
+  // …（98行 省略）…
+
+  // 相性（3すくみ）: ほのお ＞ くさ ＞ みず ＞ ほのお
+  var BEATS = { fire: 'grass', grass: 'water', water: 'fire' };
+  function typeMult(att, def) {
+    if (att === 'none' || def === 'none') return 1;
+    if (BEATS[att] === def) return 1.5;
+    if (BEATS[def] === att) return 0.67;
+    return 1;
+  }
+  // m.mood は お世話の倍率（pickParty が入れる）。無ければ元気なときのつよさ
+  function teamPower(members, bossLine, shards) {
+    var sum = 0;
+    members.forEach(function (m) { sum += powerOf(m.k, m.shiny, shards) * (m.mood || 1) * typeMult(SPECIES[m.k].line, bossLine); });
+    return sum;
+  }
+
+  // …（3行 省略）…
+
+  function offlineGain(elapsedMs, cps) {
+    if (!(elapsedMs > 0) || !(cps > 0)) return 0;
+    return Math.min(elapsedMs, OFFLINE_CAP_MS) / 1000 * cps * OFFLINE_RATE;
+  }
+
+  // …（8行 省略）…
+
+  function fmtBig(n) {
+    n = Math.floor(n || 0);
+    if (!isFinite(n)) return '∞';
+    if (n < 1e4) return n.toLocaleString();
+    // 英語などの単位は Vg（10^63）まで。その1000倍から先は 1.23e66 のような指数で書く
+    if (TEXT.bigUnits && n >= 1e66) return fmtExp(n);
+    // 無量大数の先は「1.23万無量大数」のように単位を2つ重ねる
+    if (!TEXT.bigUnits && n >= 1e72) return fmtBig(n / 1e68) + '無量大数';
+    var units = TEXT.bigUnits || BIG_UNITS_JA;
+    for (var i = 0; i < units.length; i++) {
+      if (n >= units[i][0]) return (n / units[i][0]).toFixed(2) + units[i][1];
+    }
+    return String(n);
+  }
+
+  // …（6行 省略）…
+
+  function fmtTime(ms) {
+    var s = Math.max(0, Math.ceil(ms / 1000));
+    if (s >= 3600) return Math.floor(s / 3600) + tx('unitHour', '時間') + Math.floor(s % 3600 / 60) + tx('unitMin', '分');
+    return Math.floor(s / 60) + ':' + ('0' + s % 60).slice(-2);
+  }
+
+  // …（246行 省略）…
+
+  function saveGame() {
+    S.lastTick = now();
+    var js = JSON.stringify(S);
+    try { localStorage.setItem(SAVE_KEY, js); } catch (e) { /* 保存できなくても遊べればよい */ }
+    try { localStorage.setItem(BACKUP_KEY, js); } catch (e) { /* 控えが書けなくても 本体は のこる */ }
+  }
+
+  function recomputeCps() {
+    cps = calcCps(S.cells, S.fac, S.shards, now());
+    cpsFull = calcCps(S.cells, S.fac, S.shards);
+    var off = S.gousei.slice();
+    S.nest.pairs.forEach(function (p) { off.push(p.a, p.b); });
+    cpsBase = cpsFull + calcCps(off, S.fac, S.shards);
+  }
+
+  function addCoins(v) {
+    S.coins += v;
+    S.lifetime += v;
+  }
+
+  // …（129行 省略）…
+
+  function regenNets(t) {
+    var max = netMax(S.fac.netHut), iv = netRegenMs(S.fac.netHut);
+    while (S.nets < max && t - S.netAt >= iv) {
+      S.nets++;
+      S.netAt += iv;
+    }
+    if (S.nets >= max) S.netAt = t;
+  }
+
+  // …（81行 省略）…
+
+  // 留守のあいだの分: コイン（50%・上限8時間）・あみ・野生・タマゴ
+  function applyOffline() {
+    var t = now();
+    var elapsed = Math.max(0, t - S.lastTick);
+    // 留守の稼ぎは「みんな元気なとき」の秒収入で計算する。
+    // 帰ってきたら しょんぼり でも留守中のコインは減らさない（減らすと平日10分の子が公開の基準を割る）
+    var gain = offlineGain(elapsed, cpsFull);
+    addCoins(gain);
+    regenNets(t);
+    regenBoss(t);
+    var wild = spawnWild(t);
+    var eggs = progressNest(t);
+    growFood(t);
+    return { elapsed: elapsed, coins: gain, wild: wild, eggs: eggs, sad: sadCount() };
+  }
+
+  // …（1710行 省略）…
+
+  function bossGated() { return S.boss.cleared >= BOSS_WAIT_FROM; }
+  function bossWaiting() { return bossGated() && S.boss.stock <= 0; }
+
+  // …（2行 省略）…
+
+  // あみ と同じ数え方（時刻で数えるので留守中も進む）。たまりきっている間は時計を止めておく。返すのは いま来た数。
+  // 1体来るたびに次までの時間（20〜40分）を引き直す。留守中にまとめて来るぶんも、その順に引いた時間で進む
+  function regenBoss(t) {
+    var came = 0;
+    while (S.boss.stock < BOSS_STOCK_MAX && t - S.boss.stockAt >= S.boss.nextMs) {
+      S.boss.stock++;
+      S.boss.stockAt += S.boss.nextMs;
+      S.boss.nextMs = rollRegen();
+      came++;
+    }
+    if (S.boss.stock >= BOSS_STOCK_MAX) S.boss.stockAt = t;
+    return came;
+  }
+  function bossWaitMs(t) { return Math.max(0, S.boss.nextMs - (t - S.boss.stockAt)); }
+
+  // …（57行 省略）…
+
+  // 「きあい」ゲージの位置（0=左, 1=右）。往復する
+  function gaugePos(el) {
+    var ph = (el % SWEEP_MS) / SWEEP_MS;
+    return ph < 0.5 ? ph * 2 : (1 - ph) * 2;
+  }
+  // いま出せているダメージ。タップ0回なら合計がちょうど base になるので、
+  // 「base >= ボスのつよさ なら勝ち」という元の勝敗式がそのまま残る（上乗せだけが増える）
+  function battleDealt(t) {
+    return battle.base * (1 + battle.bonus) * Math.min(1, (t - battle.t0) / BATTLE_MS);
+  }
+
+  // おうえん: 1往復に1回だけ効く。まんなかのみどりで押せば「かいしん」。
+  // 連打で押し切れると、タイミングを計る意味がなくなるので回数で上限をかけない
+  function cheerTap(x, y) {
+    var el = now() - battle.t0, sweep = Math.floor(el / SWEEP_MS);
+    if (sweep === battle.lastSweep) return;
+    battle.lastSweep = sweep;
+    battle.taps++;
+    if (Math.abs(gaugePos(el) - 0.5) <= CRIT_HALF) {
+      battle.crits++;
+      battle.bonus += 0.04;
+      addFloat(x, y, tx('critHit', 'かいしん！'), '#E67E22');
+      burst(x, y, '#ffd166', 8);
+      sfx('combo');
+      // きあいをためている最中なら、かいしんでくじける
+      if (battle.charge && !battle.charge.done && el >= battle.charge.at) battle.charge.broken = true;
+    } else {
+      battle.bonus += 0.01;
+      addFloat(x, y, tx('cheerOn', 'がんばれ！'), '#2fbf3a');
+      sfx('hit');
+    }
+  }
+
+  // …（1552行 省略）…
+
+  // ============================================
+  // メインループ（setInterval 100ms）
+  // ============================================
+  var lastTickAt = now(), saveTimer = 0, uiTimer = 0;
+  function tick() {
+    var t = now(), dt = (t - lastTickAt) / 1000;
+    lastTickAt = t;
+    if (dt <= 0) return;
+    // スリープ復帰や裏タブの間は留守と同じ50%（開きっぱなしの人と閉じた人をそろえる）
+    if (dt > 120 || document.hidden) addCoins(offlineGain(dt * 1000, cpsFull));
+    else addCoins(cps * dt);
+    regenNets(t);
+    if (regenBoss(t) && bossGated()) {
+      showBanner(tx('bannerNushiCame', 'あたらしい ぬしが やってきた！'), '#c0392b');
+      sfx('bossIn');
+      markDirty();
+    }
+    growFood(t);
+    if (spawnWild(t)) markDirty();
+    progressNest(t);
+    if (catching && t - catching.t0 > RING_LAP_MS * 5) {
+      catching = null;
+      flashTip(tx('ringGone', 'リングが消えちゃった。もう一度タップしてね'));
+    }
+    if (battle) updateBattle(t);
+    if (!tkNotified && tankenReady()) {   // 帰ってきた合図（開いている間に時間が来たとき・開いた直後に1回）
+      tkNotified = true;
+      showBanner(tx('bannerTankenBack', 'たんけんたいが かえってきた！'), '#2E8B57');
+      sfx('levelup');
+      markDirty();
+    }
+    if ((S.fac.auto || 0) >= 2 && !S.autoOff && t >= autoAt) {
+      autoAt = t + 30000;
+      // ダイアログ（まとめて おわかれ で えらんでいる とちゅう など）の あいだは 牧場を 動かさない
+      if (!drag && selected < 0 && !(battle && !battle.done) && els.modal.hidden) {
+        var n = mergeAll();
+        if (n) flashTip(tf('autoMergeDone', 'おまかせ進化で {n}回 進化したよ（しせつタブで OFF にできる）', { n: n }));
+      }
+    }
+    if (tipFlash && t >= tipFlash.until) { tipFlash = null; markDirty(); }
+    saveTimer += dt;
+    if (saveTimer >= 10) {
+      saveTimer = 0;
+      recomputeCps();   // 時間がたつと ごきげん が下がるので、何もしていなくても秒収入を追いかける
+      saveGame();
+      reportProgress();
+    }
+    renderHud();
+    uiTimer += dt;
+    if (dirty || uiTimer >= 0.5) {
+      uiTimer = 0;
+      dirty = false;
+      renderAll();
+    }
+    updateTimers(t);
+  }
+
+  function frame(t) {
+    drawScene(t);
+    requestAnimationFrame(frame);
+  }
+
+  // …（65行 省略）…
+
+})();
+
+</script>
+</body>
+</html>
